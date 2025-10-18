@@ -132,13 +132,14 @@ DankPopout {
                     model: {
                         let tabs = [
                             { icon: "dashboard", text: I18n.tr("Overview") },
-                            { icon: "music_note", text: I18n.tr("Media") }
+                            { icon: "music_note", text: I18n.tr("Media") },
+                            { icon: "wallpaper", text: I18n.tr("Wallpapers") }
                         ]
-                        
+
                         if (SettingsData.weatherEnabled) {
                             tabs.push({ icon: "wb_sunny", text: I18n.tr("Weather") })
                         }
-                        
+
                         tabs.push({ icon: "settings", text: I18n.tr("Settings"), isAction: true })
                         return tabs
                     }
@@ -148,7 +149,7 @@ DankPopout {
                     }
 
                     onActionTriggered: function(index) {
-                        let settingsIndex = SettingsData.weatherEnabled ? 3 : 2
+                        let settingsIndex = SettingsData.weatherEnabled ? 4 : 3
                         if (index === settingsIndex) {
                             dashVisible = false
                             settingsModal.show()
@@ -168,7 +169,8 @@ DankPopout {
                     implicitHeight: {
                         if (currentIndex === 0) return overviewTab.implicitHeight
                         if (currentIndex === 1) return mediaTab.implicitHeight
-                        if (SettingsData.weatherEnabled && currentIndex === 2) return weatherTab.implicitHeight
+                        if (currentIndex === 2) return wallpaperTab.implicitHeight
+                        if (SettingsData.weatherEnabled && currentIndex === 3) return weatherTab.implicitHeight
                         return overviewTab.implicitHeight
                     }
                     currentIndex: root.currentTabIndex
@@ -178,8 +180,8 @@ DankPopout {
 
                         onSwitchToWeatherTab: {
                             if (SettingsData.weatherEnabled) {
-                                tabBar.currentIndex = 2
-                                tabBar.tabClicked(2)
+                                tabBar.currentIndex = 3
+                                tabBar.tabClicked(3)
                             }
                         }
 
@@ -193,9 +195,13 @@ DankPopout {
                         id: mediaTab
                     }
 
+                    WallpaperTab {
+                        id: wallpaperTab
+                    }
+
                     WeatherTab {
                         id: weatherTab
-                        visible: SettingsData.weatherEnabled && root.currentTabIndex === 2
+                        visible: SettingsData.weatherEnabled && root.currentTabIndex === 3
                     }
                 }
             }
