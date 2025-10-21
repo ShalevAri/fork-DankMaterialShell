@@ -22,33 +22,36 @@ Item {
     property bool active: false
     property Item focusTarget: wallpaperGrid
     property Item tabBarItem: null
-    property int pendingIndex: -1
+    property int gridIndex: 0
     property Item keyForwardTarget: null
+    property int lastPage: 0
+    property bool enableAnimation: false
 
     signal requestTabChange(int newIndex)
 
+    onCurrentPageChanged: {
+        if (currentPage !== lastPage) {
+            enableAnimation = false
+            lastPage = currentPage
+        }
+    }
+
     onVisibleChanged: {
         if (visible && active) {
-            Qt.callLater(() => {
-                setInitialSelection()
-            })
+            setInitialSelection()
         }
     }
 
     Component.onCompleted: {
         loadWallpapers()
         if (visible && active) {
-            Qt.callLater(() => {
-                setInitialSelection()
-            })
+            setInitialSelection()
         }
     }
 
     onActiveChanged: {
         if (active && visible) {
-            Qt.callLater(() => {
-                setInitialSelection()
-            })
+            setInitialSelection()
         }
     }
 
@@ -58,12 +61,12 @@ Item {
     function handleKeyEvent(event) {
         const columns = 4
         const rows = 4
-        const currentRow = Math.floor(wallpaperGrid.currentIndex / columns)
-        const currentCol = wallpaperGrid.currentIndex % columns
+        const currentRow = Math.floor(gridIndex / columns)
+        const currentCol = gridIndex % columns
         const visibleCount = wallpaperGrid.model.length
 
         if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-            if (wallpaperGrid.currentIndex >= 0) {
+            if (gridIndex >= 0) {
                 const item = wallpaperGrid.currentItem
                 if (item && item.wallpaperPath) {
                     SessionData.setWallpaper(item.wallpaperPath)
@@ -75,11 +78,11 @@ Item {
         if (event.key === Qt.Key_Right) {
             if (currentCol === columns - 1) {
                 if (currentPage < totalPages - 1) {
-                    pendingIndex = currentRow * columns
+                    gridIndex = currentRow * columns
                     currentPage++
                 }
-            } else if (wallpaperGrid.currentIndex + 1 < visibleCount) {
-                wallpaperGrid.currentIndex++
+            } else if (gridIndex + 1 < visibleCount) {
+                gridIndex++
             }
             return true
         }
@@ -87,11 +90,11 @@ Item {
         if (event.key === Qt.Key_Left) {
             if (currentCol === 0) {
                 if (currentPage > 0) {
-                    pendingIndex = currentRow * columns + (columns - 1)
+                    gridIndex = currentRow * columns + (columns - 1)
                     currentPage--
                 }
             } else {
-                wallpaperGrid.currentIndex--
+                gridIndex--
             }
             return true
         }
@@ -99,42 +102,42 @@ Item {
         if (event.key === Qt.Key_Down) {
             if (currentRow === rows - 1) {
                 if (currentCol === columns - 1 && currentPage < totalPages - 1) {
-                    pendingIndex = 0
+                    gridIndex = 0
                     currentPage++
                 }
-            } else if (wallpaperGrid.currentIndex + columns < visibleCount) {
-                wallpaperGrid.currentIndex += columns
+            } else if (gridIndex + columns < visibleCount) {
+                gridIndex += columns
             }
             return true
         }
 
         if (event.key === Qt.Key_Up) {
             if (currentRow > 0) {
-                wallpaperGrid.currentIndex -= columns
+                gridIndex -= columns
             }
             return true
         }
 
         if (event.key === Qt.Key_PageUp && currentPage > 0) {
-            pendingIndex = 0
+            gridIndex = 0
             currentPage--
             return true
         }
 
         if (event.key === Qt.Key_PageDown && currentPage < totalPages - 1) {
-            pendingIndex = 0
+            gridIndex = 0
             currentPage++
             return true
         }
 
         if (event.key === Qt.Key_Home && event.modifiers & Qt.ControlModifier) {
-            pendingIndex = 0
+            gridIndex = 0
             currentPage = 0
             return true
         }
 
         if (event.key === Qt.Key_End && event.modifiers & Qt.ControlModifier) {
-            pendingIndex = 0
+            gridIndex = 0
             currentPage = totalPages - 1
             return true
         }
@@ -143,7 +146,10 @@ Item {
     }
 
     function setInitialSelection() {
-        if (!SessionData.wallpaperPath) return
+        if (!SessionData.wallpaperPath) {
+            gridIndex = 0
+            return
+        }
 
         const startIndex = currentPage * itemsPerPage
         const endIndex = Math.min(startIndex + itemsPerPage, wallpaperList.length)
@@ -151,15 +157,16 @@ Item {
 
         for (let i = 0; i < pageWallpapers.length; i++) {
             if (pageWallpapers[i] === SessionData.wallpaperPath) {
-                wallpaperGrid.currentIndex = i
+                gridIndex = i
                 return
             }
         }
+        gridIndex = 0
     }
 
     onWallpaperListChanged: {
         if (visible && active) {
-            Qt.callLater(() => setInitialSelection())
+            setInitialSelection()
         }
     }
 
@@ -198,13 +205,16 @@ Item {
 
                     if (selectedIndex >= 0) {
                         currentPage = Math.floor(selectedIndex / itemsPerPage)
+                        gridIndex = selectedIndex % itemsPerPage
                     } else {
                         const maxPage = Math.max(0, Math.ceil(files.length / itemsPerPage) - 1)
                         currentPage = Math.min(Math.max(0, currentPage), maxPage)
+                        gridIndex = 0
                     }
                 } else {
                     wallpaperList = []
                     currentPage = 0
+                    gridIndex = 0
                 }
             }
         }
@@ -232,7 +242,7 @@ Item {
                 keyNavigationEnabled: false
                 activeFocusOnTab: false
                 highlightFollowsCurrentItem: true
-                currentIndex: 0
+                highlightMoveDuration: enableAnimation ? Theme.shortDuration : 0
                 focus: true
 
                 highlight: Rectangle {
@@ -249,9 +259,27 @@ Item {
                 }
 
                 onModelChanged: {
-                    if (pendingIndex >= 0) {
-                        wallpaperGrid.currentIndex = pendingIndex
-                        pendingIndex = -1
+                    const clampedIndex = model.length > 0 ? Math.min(Math.max(0, gridIndex), model.length - 1) : 0
+                    if (gridIndex !== clampedIndex) {
+                        gridIndex = clampedIndex
+                    }
+                }
+
+                onCountChanged: {
+                    if (count > 0) {
+                        const clampedIndex = Math.min(gridIndex, count - 1)
+                        currentIndex = clampedIndex
+                        positionViewAtIndex(clampedIndex, GridView.Contain)
+                    }
+                    enableAnimation = true
+                }
+
+                Connections {
+                    target: root
+                    function onGridIndexChanged() {
+                        if (enableAnimation && wallpaperGrid.count > 0) {
+                            wallpaperGrid.currentIndex = gridIndex
+                        }
                     }
                 }
 
@@ -326,7 +354,7 @@ Item {
                             cursorShape: Qt.PointingHandCursor
 
                             onClicked: {
-                                wallpaperGrid.currentIndex = index
+                                gridIndex = index
                                 root.requestFocus()
                                 if (modelData) {
                                     SessionData.setWallpaper(modelData)
