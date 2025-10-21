@@ -501,6 +501,13 @@ Dashboard popup control with tab selection for overview, media, and weather info
   - Parameters: `tab` - Optional tab to open when showing: "" (default), "overview", "media", or "weather"
   - Returns: Success/failure message
 
+### Target: `dankdash`
+DankDash wallpaper browser control.
+
+**Functions:**
+- `wallpaper` - Open DankDash popup on focused screen with wallpaper tab selected
+  - Returns: Success/failure message
+
 ### Target: `file`
 File browser controls for selecting wallpapers and profile images.
 
@@ -562,6 +569,9 @@ dms ipc call notepad toggle
 dms ipc call dash open overview
 dms ipc call dash toggle media
 dms ipc call dash open weather
+
+# Open wallpaper browser
+dms ipc call dankdash wallpaper
 
 # Open file browsers
 dms ipc call file browse wallpaper
