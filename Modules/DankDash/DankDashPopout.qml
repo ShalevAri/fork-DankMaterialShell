@@ -67,7 +67,7 @@ DankPopout {
 
             Component.onCompleted: {
                 if (root.shouldBeVisible) {
-                    Qt.callLater(() => tabBar.forceActiveFocus())
+                    Qt.callLater(() => mainContainer.forceActiveFocus())
                 }
             }
 
@@ -75,6 +75,45 @@ DankPopout {
                 if (event.key === Qt.Key_Escape) {
                     root.dashVisible = false
                     event.accepted = true
+                    return
+                }
+
+                if (event.key === Qt.Key_Tab && !(event.modifiers & Qt.ShiftModifier)) {
+                    let nextIndex = root.currentTabIndex + 1
+                    while (nextIndex < tabBar.model.length && tabBar.model[nextIndex] && tabBar.model[nextIndex].isAction) {
+                        nextIndex++
+                    }
+                    if (nextIndex >= tabBar.model.length) {
+                        nextIndex = 0
+                    }
+                    root.currentTabIndex = nextIndex
+                    event.accepted = true
+                    return
+                }
+
+                if (event.key === Qt.Key_Backtab || (event.key === Qt.Key_Tab && (event.modifiers & Qt.ShiftModifier))) {
+                    let prevIndex = root.currentTabIndex - 1
+                    while (prevIndex >= 0 && tabBar.model[prevIndex] && tabBar.model[prevIndex].isAction) {
+                        prevIndex--
+                    }
+                    if (prevIndex < 0) {
+                        prevIndex = tabBar.model.length - 1
+                        while (prevIndex >= 0 && tabBar.model[prevIndex] && tabBar.model[prevIndex].isAction) {
+                            prevIndex--
+                        }
+                    }
+                    if (prevIndex >= 0) {
+                        root.currentTabIndex = prevIndex
+                    }
+                    event.accepted = true
+                    return
+                }
+
+                if (root.currentTabIndex === 2 && wallpaperTab.handleKeyEvent) {
+                    if (wallpaperTab.handleKeyEvent(event)) {
+                        event.accepted = true
+                        return
+                    }
                 }
             }
 
@@ -82,7 +121,7 @@ DankPopout {
                 function onShouldBeVisibleChanged() {
                     if (root.shouldBeVisible) {
                         Qt.callLater(function() {
-                            tabBar.forceActiveFocus()
+                            mainContainer.forceActiveFocus()
                         })
                     }
                 }
@@ -129,6 +168,8 @@ DankPopout {
                     spacing: Theme.spacingS
                     equalWidthTabs: true
                     enableArrowNavigation: false
+                    focus: false
+                    activeFocusOnTab: false
                     nextFocusTarget: {
                         const item = pages.currentItem
                         if (!item)
@@ -208,6 +249,7 @@ DankPopout {
                         id: wallpaperTab
                         active: root.currentTabIndex === 2
                         tabBarItem: tabBar
+                        keyForwardTarget: mainContainer
                     }
 
                     WeatherTab {

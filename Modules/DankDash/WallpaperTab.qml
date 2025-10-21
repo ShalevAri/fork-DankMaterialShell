@@ -8,12 +8,11 @@ import qs.Common
 import qs.Services
 import qs.Widgets
 
-FocusScope {
+Item {
     id: root
 
     implicitWidth: 700
     implicitHeight: 410
-    focus: true
 
     property var wallpaperList: []
     property string wallpaperDir: ""
@@ -23,12 +22,15 @@ FocusScope {
     property bool active: false
     property Item focusTarget: wallpaperGrid
     property Item tabBarItem: null
+    property int pendingIndex: -1
+    property Item keyForwardTarget: null
+
+    signal requestTabChange(int newIndex)
 
     onVisibleChanged: {
         if (visible && active) {
             Qt.callLater(() => {
                 setInitialSelection()
-                forceActiveFocus()
             })
         }
     }
@@ -38,7 +40,6 @@ FocusScope {
         if (visible && active) {
             Qt.callLater(() => {
                 setInitialSelection()
-                forceActiveFocus()
             })
         }
     }
@@ -47,115 +48,98 @@ FocusScope {
         if (active && visible) {
             Qt.callLater(() => {
                 setInitialSelection()
-                forceActiveFocus()
             })
         }
     }
 
     function requestFocus() {
-        forceActiveFocus()
     }
 
-    Keys.onPressed: (event) => {
+    function handleKeyEvent(event) {
         const columns = 4
         const rows = 4
         const currentRow = Math.floor(wallpaperGrid.currentIndex / columns)
         const currentCol = wallpaperGrid.currentIndex % columns
         const visibleCount = wallpaperGrid.model.length
 
-        if (event.key === Qt.Key_Tab && !(event.modifiers & Qt.ShiftModifier) && root.tabBarItem) {
-            const tabBar = root.tabBarItem
-            const nextIndex = (tabBar.currentIndex + 1) % tabBar.model.length
-            tabBar.currentIndex = nextIndex
-            tabBar.tabClicked(nextIndex)
-            event.accepted = true
-            return
-        }
-
-        if (event.key === Qt.Key_Tab && (event.modifiers & Qt.ShiftModifier) && root.tabBarItem) {
-            const tabBar = root.tabBarItem
-            const prevIndex = tabBar.currentIndex - 1
-            const newIndex = prevIndex < 0 ? tabBar.model.length - 1 : prevIndex
-            tabBar.currentIndex = newIndex
-            tabBar.tabClicked(newIndex)
-            event.accepted = true
-            return
+        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+            if (wallpaperGrid.currentIndex >= 0) {
+                const item = wallpaperGrid.currentItem
+                if (item && item.wallpaperPath) {
+                    SessionData.setWallpaper(item.wallpaperPath)
+                }
+            }
+            return true
         }
 
         if (event.key === Qt.Key_Right) {
             if (currentCol === columns - 1) {
                 if (currentPage < totalPages - 1) {
+                    pendingIndex = currentRow * columns
                     currentPage++
-                    wallpaperGrid.currentIndex = currentRow * columns
                 }
             } else if (wallpaperGrid.currentIndex + 1 < visibleCount) {
                 wallpaperGrid.currentIndex++
             }
-            event.accepted = true
-            return
+            return true
         }
 
         if (event.key === Qt.Key_Left) {
             if (currentCol === 0) {
                 if (currentPage > 0) {
+                    pendingIndex = currentRow * columns + (columns - 1)
                     currentPage--
-                    wallpaperGrid.currentIndex = currentRow * columns + (columns - 1)
                 }
             } else {
                 wallpaperGrid.currentIndex--
             }
-            event.accepted = true
-            return
+            return true
         }
 
         if (event.key === Qt.Key_Down) {
             if (currentRow === rows - 1) {
                 if (currentCol === columns - 1 && currentPage < totalPages - 1) {
+                    pendingIndex = 0
                     currentPage++
-                    wallpaperGrid.currentIndex = 0
                 }
             } else if (wallpaperGrid.currentIndex + columns < visibleCount) {
                 wallpaperGrid.currentIndex += columns
             }
-            event.accepted = true
-            return
+            return true
         }
 
         if (event.key === Qt.Key_Up) {
             if (currentRow > 0) {
                 wallpaperGrid.currentIndex -= columns
             }
-            event.accepted = true
-            return
+            return true
         }
 
         if (event.key === Qt.Key_PageUp && currentPage > 0) {
+            pendingIndex = 0
             currentPage--
-            wallpaperGrid.currentIndex = 0
-            event.accepted = true
-            return
+            return true
         }
 
         if (event.key === Qt.Key_PageDown && currentPage < totalPages - 1) {
+            pendingIndex = 0
             currentPage++
-            wallpaperGrid.currentIndex = 0
-            event.accepted = true
-            return
+            return true
         }
 
         if (event.key === Qt.Key_Home && event.modifiers & Qt.ControlModifier) {
+            pendingIndex = 0
             currentPage = 0
-            wallpaperGrid.currentIndex = 0
-            event.accepted = true
-            return
+            return true
         }
 
         if (event.key === Qt.Key_End && event.modifiers & Qt.ControlModifier) {
+            pendingIndex = 0
             currentPage = totalPages - 1
-            wallpaperGrid.currentIndex = 0
-            event.accepted = true
-            return
+            return true
         }
+
+        return false
     }
 
     function setInitialSelection() {
@@ -246,7 +230,7 @@ FocusScope {
                 interactive: root.active
                 boundsBehavior: Flickable.StopAtBounds
                 keyNavigationEnabled: false
-                activeFocusOnTab: true
+                activeFocusOnTab: false
                 highlightFollowsCurrentItem: true
                 currentIndex: 0
                 focus: true
@@ -256,43 +240,19 @@ FocusScope {
                     border.width: 3
                     border.color: Theme.primary
                     radius: Theme.cornerRadius
-
-                    Behavior on x {
-                        NumberAnimation {
-                            duration: Theme.shortDuration
-                            easing.type: Theme.standardEasing
-                        }
-                    }
-                    Behavior on y {
-                        NumberAnimation {
-                            duration: Theme.shortDuration
-                            easing.type: Theme.standardEasing
-                        }
-                    }
-                }
-
-                Keys.onReturnPressed: {
-                    if (currentIndex >= 0) {
-                        const item = wallpaperGrid.currentItem
-                        if (item && item.wallpaperPath) {
-                            SessionData.setWallpaper(item.wallpaperPath)
-                        }
-                    }
-                }
-
-                Keys.onEnterPressed: {
-                    if (currentIndex >= 0) {
-                        const item = wallpaperGrid.currentItem
-                        if (item && item.wallpaperPath) {
-                            SessionData.setWallpaper(item.wallpaperPath)
-                        }
-                    }
                 }
 
                 model: {
                     const startIndex = currentPage * itemsPerPage
                     const endIndex = Math.min(startIndex + itemsPerPage, wallpaperList.length)
                     return wallpaperList.slice(startIndex, endIndex)
+                }
+
+                onModelChanged: {
+                    if (pendingIndex >= 0) {
+                        wallpaperGrid.currentIndex = pendingIndex
+                        pendingIndex = -1
+                    }
                 }
 
                 delegate: Item {
