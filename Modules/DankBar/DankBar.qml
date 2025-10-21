@@ -118,8 +118,10 @@ Item {
                     dankDashPopoutLoader.item.triggerScreen = barWindow.screen
                 }
 
-                dankDashPopoutLoader.item.currentTabIndex = 2
-                dankDashPopoutLoader.item.dashVisible = true
+                if (!dankDashPopoutLoader.item.dashVisible) {
+                    dankDashPopoutLoader.item.currentTabIndex = 2
+                }
+                dankDashPopoutLoader.item.dashVisible = !dankDashPopoutLoader.item.dashVisible
             }
 
             readonly property var dBarLayer: {
@@ -1266,9 +1268,9 @@ Item {
 
         function wallpaper(): string {
             if (root.triggerWallpaperBrowserOnFocusedScreen()) {
-                return "SUCCESS: Opened wallpaper browser"
+                return "SUCCESS: Toggled wallpaper browser"
             }
-            return "ERROR: Failed to open wallpaper browser"
+            return "ERROR: Failed to toggle wallpaper browser"
         }
     }
 }

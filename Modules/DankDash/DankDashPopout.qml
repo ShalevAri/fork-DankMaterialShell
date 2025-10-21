@@ -16,6 +16,8 @@ DankPopout {
     property var triggerScreen: null
     property int currentTabIndex: 0
 
+    keyboardFocusMode: WlrKeyboardFocus.Exclusive
+
     function setTriggerPosition(x, y, width, section, screen) {
         triggerSection = section
         triggerScreen = screen
@@ -43,13 +45,47 @@ DankPopout {
     shouldBeVisible: dashVisible
     visible: shouldBeVisible
 
+    property bool __focusArmed: false
+    property bool __contentReady: false
+
+    function __tryFocusOnce() {
+        if (!__focusArmed) return
+        const win = root.window
+        if (!win || !win.visible) return
+        if (!contentLoader.item) return
+
+        if (win.requestActivate) win.requestActivate()
+        contentLoader.item.forceActiveFocus(Qt.TabFocusReason)
+
+        if (contentLoader.item.activeFocus)
+            __focusArmed = false
+    }
 
     onDashVisibleChanged: {
         if (dashVisible) {
+            __focusArmed = true
+            __contentReady = !!contentLoader.item
             open()
+            __tryFocusOnce()
         } else {
+            __focusArmed = false
+            __contentReady = false
             close()
         }
+    }
+
+    Connections {
+        target: contentLoader
+        function onLoaded() {
+            __contentReady = true
+            if (__focusArmed) __tryFocusOnce()
+        }
+    }
+
+    Connections {
+        target: root.window ? root.window : null
+        enabled: !!root.window
+        function onVisibleChanged() { if (__focusArmed) __tryFocusOnce() }
     }
 
     onBackgroundClicked: {
@@ -67,7 +103,18 @@ DankPopout {
 
             Component.onCompleted: {
                 if (root.shouldBeVisible) {
-                    Qt.callLater(() => mainContainer.forceActiveFocus())
+                    mainContainer.forceActiveFocus()
+                }
+            }
+
+            Connections {
+                target: root
+                function onShouldBeVisibleChanged() {
+                    if (root.shouldBeVisible) {
+                        Qt.callLater(function() {
+                            mainContainer.forceActiveFocus()
+                        })
+                    }
                 }
             }
 
@@ -115,17 +162,6 @@ DankPopout {
                         return
                     }
                 }
-            }
-
-            Connections {
-                function onShouldBeVisibleChanged() {
-                    if (root.shouldBeVisible) {
-                        Qt.callLater(function() {
-                            mainContainer.forceActiveFocus()
-                        })
-                    }
-                }
-                target: root
             }
 
             Rectangle {

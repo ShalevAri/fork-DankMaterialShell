@@ -25,6 +25,7 @@ PanelWindow {
     property list<real> animationEnterCurve: Theme.expressiveCurves.expressiveDefaultSpatial
     property list<real> animationExitCurve: Theme.expressiveCurves.emphasized
     property bool shouldBeVisible: false
+    property int keyboardFocusMode: WlrKeyboardFocus.OnDemand
 
     signal opened
     signal popoutClosed
@@ -63,7 +64,7 @@ PanelWindow {
     color: "transparent"
     WlrLayershell.layer: WlrLayershell.Top
     WlrLayershell.exclusiveZone: -1
-    WlrLayershell.keyboardFocus: shouldBeVisible ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None 
+    WlrLayershell.keyboardFocus: shouldBeVisible ? keyboardFocusMode : WlrKeyboardFocus.None 
 
     anchors {
         top: true

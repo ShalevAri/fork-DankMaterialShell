@@ -55,9 +55,6 @@ Item {
         }
     }
 
-    function requestFocus() {
-    }
-
     function handleKeyEvent(event) {
         const columns = 4
         const rows = 4

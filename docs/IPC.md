@@ -505,7 +505,7 @@ Dashboard popup control with tab selection for overview, media, and weather info
 DankDash wallpaper browser control.
 
 **Functions:**
-- `wallpaper` - Open DankDash popup on focused screen with wallpaper tab selected
+- `wallpaper` - Toggle DankDash popup on focused screen with wallpaper tab selected
   - Returns: Success/failure message
 
 ### Target: `file`
