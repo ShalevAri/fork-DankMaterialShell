@@ -1,3 +1,4 @@
+import Qt.labs.folderlistmodel
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
@@ -183,7 +184,6 @@ Item {
         if (!currentWallpaper || currentWallpaper.startsWith("#") || currentWallpaper.startsWith("we:")) {
             if (CacheData.wallpaperLastPath && CacheData.wallpaperLastPath !== "") {
                 wallpaperDir = CacheData.wallpaperLastPath
-                wallpaperProcess.running = true
             } else {
                 wallpaperDir = ""
                 wallpaperList = []
@@ -192,7 +192,40 @@ Item {
         }
 
         wallpaperDir = currentWallpaper.substring(0, currentWallpaper.lastIndexOf('/'))
-        wallpaperProcess.running = true
+    }
+
+    function updateWallpaperList() {
+        if (!wallpaperFolderModel || wallpaperFolderModel.count === 0) {
+            wallpaperList = []
+            currentPage = 0
+            gridIndex = 0
+            return
+        }
+
+        // Build list from FolderListModel
+        const files = []
+        for (let i = 0; i < wallpaperFolderModel.count; i++) {
+            const filePath = wallpaperFolderModel.get(i, "filePath")
+            if (filePath) {
+                // Remove file:// prefix if present
+                const cleanPath = filePath.toString().replace(/^file:\/\//, '')
+                files.push(cleanPath)
+            }
+        }
+
+        wallpaperList = files
+
+        const currentPath = SessionData.wallpaperPath
+        const selectedIndex = currentPath ? wallpaperList.indexOf(currentPath) : -1
+
+        if (selectedIndex >= 0) {
+            currentPage = Math.floor(selectedIndex / itemsPerPage)
+            gridIndex = selectedIndex % itemsPerPage
+        } else {
+            const maxPage = Math.max(0, Math.ceil(files.length / itemsPerPage) - 1)
+            currentPage = Math.min(Math.max(0, currentPage), maxPage)
+            gridIndex = 0
+        }
     }
 
     Connections {
@@ -202,33 +235,27 @@ Item {
         }
     }
 
-    Process {
-        id: wallpaperProcess
-        command: wallpaperDir ? ["sh", "-c", `ls -1 "${wallpaperDir}"/*.jpg "${wallpaperDir}"/*.jpeg "${wallpaperDir}"/*.png "${wallpaperDir}"/*.bmp "${wallpaperDir}"/*.gif "${wallpaperDir}"/*.webp 2>/dev/null | sort`] : []
-        running: false
+    FolderListModel {
+        id: wallpaperFolderModel
 
-        stdout: StdioCollector {
-            onStreamFinished: {
-                if (text && text.trim()) {
-                    const files = text.trim().split('\n').filter(file => file.length > 0)
-                    wallpaperList = files
+        showDirsFirst: false
+        showDotAndDotDot: false
+        showHidden: false
+        nameFilters: ["*.jpg", "*.jpeg", "*.png", "*.bmp", "*.gif", "*.webp"]
+        showFiles: true
+        showDirs: false
+        sortField: FolderListModel.Name
+        folder: wallpaperDir ? "file://" + wallpaperDir : ""
 
-                    const currentPath = SessionData.wallpaperPath
-                    const selectedIndex = currentPath ? wallpaperList.indexOf(currentPath) : -1
+        onStatusChanged: {
+            if (status === FolderListModel.Ready) {
+                updateWallpaperList()
+            }
+        }
 
-                    if (selectedIndex >= 0) {
-                        currentPage = Math.floor(selectedIndex / itemsPerPage)
-                        gridIndex = selectedIndex % itemsPerPage
-                    } else {
-                        const maxPage = Math.max(0, Math.ceil(files.length / itemsPerPage) - 1)
-                        currentPage = Math.min(Math.max(0, currentPage), maxPage)
-                        gridIndex = 0
-                    }
-                } else {
-                    wallpaperList = []
-                    currentPage = 0
-                    gridIndex = 0
-                }
+        onCountChanged: {
+            if (status === FolderListModel.Ready) {
+                updateWallpaperList()
             }
         }
     }
@@ -260,7 +287,6 @@ Item {
                     wallpaperDir = dirPath
                     CacheData.wallpaperLastPath = dirPath
                     CacheData.saveCache()
-                    wallpaperProcess.running = true
                 }
                 close()
             }
